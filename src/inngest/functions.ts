@@ -1,11 +1,18 @@
 // src/inngest/functions.ts
 import { createAgent, gemini } from "@inngest/agent-kit";
 import { inngest } from "./client";
+import { Sandbox } from "@e2b/code-interpreter";
+import { getSandbox } from "./utils";
 
 export const processTask = inngest.createFunction(
   { id: "process-task", triggers: { event: "app/task.created" } },
   async ({ event, step }) => {
-    await step.sleep("pause", "1s");
+    const sandboxId = await step.run("get-sandbox-id", async () => {
+      const sandbox = await Sandbox.create(
+        "nirupamtalukdar123/lovable-clone-test-2",
+      );
+      return sandbox.sandboxId;
+    });
 
     const codeAgent = createAgent({
       name: "code-agent",
@@ -18,8 +25,12 @@ export const processTask = inngest.createFunction(
       `Write the following snippet: ${event.data.value}`,
     );
 
-    console.log(output);
+    const sandboxUrl = await step.run("get-sandbox-url", async () => {
+      const sandbox = await getSandbox(sandboxId);
+      const host = sandbox.getHost(3000);
+      return `https://${host}`;
+    });
 
-    return { output };
+    return { output, sandboxUrl };
   },
 );
